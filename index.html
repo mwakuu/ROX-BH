@@ -13,10 +13,11 @@
       --line:rgba(255,255,255,.14);
       --line-strong:rgba(255,255,255,.26);
       --btn:#2b6dff;
-      --btn2:rgba(255,255,255,.08);
+      --btn2:rgba(255,255,255,.10);
       --danger:#ff4d4d;
-      --danger-bg:rgba(255,77,77,.14);
+      --danger-bg:rgba(255,77,77,.16);
       --focus:#9bc0ff;
+      --active:#2b6dff;
     }
     *{box-sizing:border-box}
     body{
@@ -40,7 +41,6 @@
     }
     .span2{grid-column:span 2}
     h2{margin:0 0 10px 0;font-size:16px}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
     label{display:block;font-size:12px;color:var(--muted)}
     input,textarea,select{
       margin-top:6px;width:100%;
@@ -55,13 +55,13 @@
 
     /* Buttons: higher contrast + visible focus */
     .btn, .btnGhost, .btnDanger{
-      padding:8px 10px;border-radius:10px;cursor:pointer;font-weight:700;
+      padding:8px 10px;border-radius:10px;cursor:pointer;font-weight:800;
       border:1px solid transparent;
     }
     .btn{
-      background:var(--btn); color:white; border-color:rgba(43,109,255,.45);
+      background:var(--btn); color:white; border-color:rgba(43,109,255,.55);
     }
-    .btn:hover{filter:brightness(1.05)}
+    .btn:hover{filter:brightness(1.06)}
     .btnGhost{
       background:var(--btn2);
       color:var(--text);
@@ -71,7 +71,7 @@
     .btnDanger{
       background:var(--danger-bg);
       color:var(--danger);
-      border-color:rgba(255,77,77,.38);
+      border-color:rgba(255,77,77,.45);
     }
     .btnDanger:hover{filter:brightness(1.08)}
 
@@ -82,7 +82,8 @@
 
     .list{display:flex;flex-direction:column;gap:8px}
     .item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.12)}
-    .badge{font-size:13px;padding:6px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+    .badge{font-size:13px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-weight:800}
+    .badgeActive{color:#fff;border-color:rgba(43,109,255,.7);background:rgba(43,109,255,.14)}
     table{width:100%;border-collapse:collapse}
     th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
     th{color:var(--muted);font-size:12px}
@@ -99,7 +100,10 @@
 <header class="wrap">
   <div class="title">
     <h1>Boss Timer</h1>
-    <p class="muted small">Preloaded bosses (once). Edit by countdown only. Mini=2h+5m, MVP=3h+5m.</p>
+    <p class="muted small">
+      Preloaded bosses (once). Edit by countdown only.
+      Mini=2h+5m, MVP=3h+5m. “ACTIVE” shown for 3 minutes after spawn.
+    </p>
   </div>
   <div class="controls">
     <button id="btnNotifs" class="btn">Enable notifications</button>
@@ -121,20 +125,13 @@
 
 <main class="wrap grid">
   <section class="card">
-    <h2>Quick edit (recommended)</h2>
-    <p class="muted small" style="margin-top:0">
-      Your bosses are already loaded. Just paste countdowns into the table rows and press <strong>Apply</strong>.
-    </p>
-
-    <hr style="margin:12px 0;border:none;border-top:1px solid var(--line)" />
-
     <h2>Bulk update countdowns</h2>
     <p class="muted small">
       One per line: <code>Name, HH:MM:SS, mvp|mini</code><br/>
       Example: <code>Amon Ra, 00:45:12, mvp</code>
     </p>
     <textarea id="bulk"></textarea>
-    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+    <div class="controls" style="margin-top:8px">
       <button id="btnBulk" class="btn" type="button">Import / Update</button>
       <button id="btnClearBulk" class="btnGhost" type="button">Clear</button>
       <button id="btnRestoreDefaults" class="btnGhost" type="button">Restore default boss list</button>
@@ -167,8 +164,9 @@
     </div>
     <div id="tableWrap" style="margin-top:10px"></div>
     <p class="muted small" style="margin-top:10px">
-      Row buttons: <strong>-10s</strong> fine-tunes, <strong>Killed</strong> resets to full respawn (2h+5 / 3h+5),
-      <strong>Apply</strong> sets the countdown you typed.
+      Type the countdown you see in-game → <strong>Apply</strong>.
+      Use <strong>Killed</strong> when you kill it (sets to full interval: 2h+5 / 3h+5).
+      <strong>-10s</strong> fine tunes.
     </p>
   </section>
 
@@ -184,9 +182,11 @@
 
 <script>
 (() => {
-  const STORAGE = "boss_timer_v3";
-  const NOTIF_LOG = "boss_notif_log_v3";
-  const SEEDED_KEY = "boss_timer_seeded_v3";
+  const STORAGE = "boss_timer_v4";
+  const SEEDED_KEY = "boss_timer_seeded_v4";
+  const NOTIF_LOG = "boss_notif_log_v4";
+
+  const ACTIVE_WINDOW_MS = 3 * 60 * 1000; // 3 minutes
 
   const $ = (id) => document.getElementById(id);
 
@@ -268,7 +268,6 @@
     return base + 5;
   }
 
-  // ----- Defaults (preload once) -----
   const DEFAULT_BOSSES = [
     // MVP
     ["Orc Hero","mvp"],["Maya","mvp"],["Pharaoh","mvp"],["Orc Lord","mvp"],["Doppelganger","mvp"],
@@ -282,7 +281,6 @@
     const seeded = localStorage.getItem(SEEDED_KEY) === "1";
     if (seeded) return;
 
-    // Only seed if no bosses exist (fresh browser)
     if (!state.bosses || state.bosses.length === 0) {
       const nowISO = new Date().toISOString();
       state.bosses = DEFAULT_BOSSES.map(([name,type]) => ({
@@ -294,7 +292,6 @@
       }));
       saveState();
     }
-
     localStorage.setItem(SEEDED_KEY, "1");
   }
 
@@ -312,7 +309,7 @@
     renderAll();
   }
 
-  // Respawn math: anchor is the next spawn time; thereafter repeats every interval
+  // Next spawn calculation (anchorISO is the next spawn time).
   function nextSpawn(boss, from = new Date()) {
     const anchor = new Date(boss.rule.anchorISO);
     const intervalMs = boss.rule.intervalMinutes * 60 * 1000;
@@ -323,7 +320,7 @@
     return next;
   }
 
-  // Unique upsert by name+type
+  // Upsert by name+type
   function upsertBossByNameType(name, type, countdownMs, notifyLead) {
     const normName = name.trim().toLowerCase();
     const intervalMin = intervalMinutesForType(type);
@@ -346,7 +343,7 @@
     saveState();
   }
 
-  // ----- Bulk update -----
+  // Bulk update
   els.btnBulk.addEventListener("click", () => {
     const raw = els.bulk.value.trim();
     if (!raw) return alert("Paste lines first.");
@@ -375,7 +372,7 @@
   els.btnClearBulk.addEventListener("click", () => els.bulk.value = "");
   els.btnRestoreDefaults.addEventListener("click", restoreDefaults);
 
-  // ----- Row actions -----
+  // Row actions
   function applyCountdown(id) {
     const input = els.tableWrap.querySelector(`input.cd[data-id="${id}"]`);
     if (!input) return;
@@ -389,7 +386,7 @@
     b.rule.anchorISO = new Date(Date.now() + ms).toISOString();
     input.dataset.dirty = "0";
     saveState();
-    renderNext(); renderSchedule(); updateCountdownInputs();
+    renderNext(); renderSchedule(); updateCountdownInputs(false);
   }
 
   function minusTen(id) {
@@ -408,7 +405,7 @@
     b.rule.anchorISO = new Date(Date.now() + newMs).toISOString();
     input.dataset.dirty = "0";
     saveState();
-    renderNext(); renderSchedule(); updateCountdownInputs();
+    renderNext(); renderSchedule(); updateCountdownInputs(false);
   }
 
   function killed(id) {
@@ -417,38 +414,70 @@
     const intervalMs = b.rule.intervalMinutes * 60 * 1000;
     b.rule.anchorISO = new Date(Date.now() + intervalMs).toISOString();
     saveState();
-    renderNext(); renderSchedule(); updateCountdownInputs();
+    renderNext(); renderSchedule(); updateCountdownInputs(false);
   }
 
-  function delBoss(id) {
+  function removeBoss(id) {
     if (!confirm("Remove this boss from your list?")) return;
     state.bosses = state.bosses.filter(b => b.id !== id);
     saveState();
     renderAll();
   }
 
-  // ----- Render -----
+  // ACTIVE state + sorting for Next Spawns
   function renderNext() {
     const now = new Date();
-    const items = state.bosses
-      .map(b => ({ b, next: nextSpawn(b, now) }))
-      .map(x => ({ ...x, ms: x.next.getTime() - now.getTime() }))
-      .sort((a,b) => a.ms - b.ms);
+
+    const items = state.bosses.map(b => {
+      const intervalMs = b.rule.intervalMinutes * 60 * 1000;
+      const next = nextSpawn(b, now);
+
+      // last spawn is one interval before the next spawn (since nextSpawn is the next upcoming)
+      const last = new Date(next.getTime() - intervalMs);
+      const activeUntil = new Date(last.getTime() + ACTIVE_WINDOW_MS);
+      const isActive = now >= last && now < activeUntil;
+
+      return {
+        b,
+        next,
+        isActive,
+        activeRemainingMs: isActive ? (activeUntil.getTime() - now.getTime()) : 0,
+        msToNext: next.getTime() - now.getTime(),
+      };
+    });
+
+    // Sort: ACTIVE first (soonest to expire first), then by msToNext
+    items.sort((a, b) => {
+      if (a.isActive && !b.isActive) return -1;
+      if (!a.isActive && b.isActive) return 1;
+      if (a.isActive && b.isActive) return a.activeRemainingMs - b.activeRemainingMs;
+      return a.msToNext - b.msToNext;
+    });
 
     if (items.length === 0) {
       els.nextList.innerHTML = `<p class="muted">No bosses in your list. Restore defaults to start.</p>`;
       return;
     }
 
-    els.nextList.innerHTML = items.map(it => `
-      <div class="item">
-        <div>
-          <strong>${escapeHtml(it.b.name)}</strong>
-          <div class="muted small">Next: ${escapeHtml(fmtDate(it.next))}</div>
+    els.nextList.innerHTML = items.map(it => {
+      const badge = it.isActive
+        ? `<div class="badge badgeActive">ACTIVE</div>`
+        : `<div class="badge">${escapeHtml(formatDuration(it.msToNext))}</div>`;
+
+      const subline = it.isActive
+        ? `<div class="muted small">Active window: ~${escapeHtml(formatDuration(it.activeRemainingMs))} left • Next cycle: ${escapeHtml(fmtDate(it.next))}</div>`
+        : `<div class="muted small">Next: ${escapeHtml(fmtDate(it.next))}</div>`;
+
+      return `
+        <div class="item">
+          <div>
+            <strong>${escapeHtml(it.b.name)}</strong>
+            ${subline}
+          </div>
+          ${badge}
         </div>
-        <div class="badge">${escapeHtml(formatDuration(it.ms))}</div>
-      </div>
-    `).join("");
+      `;
+    }).join("");
   }
 
   function renderSchedule() {
@@ -516,7 +545,6 @@
       </table>
     `;
 
-    // Fill countdown inputs (but DO NOT overwrite while user edits)
     updateCountdownInputs(true);
 
     els.tableWrap.querySelectorAll("button.apply").forEach(btn =>
@@ -529,7 +557,7 @@
       btn.addEventListener("click", () => killed(btn.dataset.id))
     );
     els.tableWrap.querySelectorAll("button.del").forEach(btn =>
-      btn.addEventListener("click", () => delBoss(btn.dataset.id))
+      btn.addEventListener("click", () => removeBoss(btn.dataset.id))
     );
 
     els.tableWrap.querySelectorAll("input.cd").forEach(inp => {
@@ -548,10 +576,12 @@
     state.bosses.forEach(b => {
       const input = els.tableWrap.querySelector(`input.cd[data-id="${b.id}"]`);
       if (!input) return;
+
       if (!force) {
         if (document.activeElement === input) return;
         if (input.dataset.dirty === "1") return;
       }
+
       const next = nextSpawn(b, now);
       input.value = msToHHMMSS(next.getTime() - now.getTime());
       input.dataset.dirty = "0";
@@ -564,7 +594,7 @@
     renderSchedule();
   }
 
-  // ----- Notifications -----
+  // Notifications
   async function requestNotifs() {
     if (!("Notification" in window)) return alert("Notifications not supported.");
     const p = await Notification.requestPermission();
@@ -611,7 +641,7 @@
     if (changed) saveNotifLog(log);
   }
 
-  // ----- Export / Import -----
+  // Export / Import
   els.btnExport.addEventListener("click", () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type:"application/json" });
     const url = URL.createObjectURL(blob);
@@ -646,7 +676,7 @@
     r.readAsText(f);
   });
 
-  // ----- Other UI -----
+  // Other UI
   els.btnNotifs.addEventListener("click", requestNotifs);
   els.btnClearAll.addEventListener("click", () => {
     if (!confirm("Clear ALL bosses?")) return;
@@ -655,7 +685,7 @@
     renderAll();
   });
 
-  // ----- Tick -----
+  // Tick
   let timer = null;
   function restartTick() {
     if (timer) clearInterval(timer);
