@@ -3,679 +3,459 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Boss Timer</title>
+  <title>Boss Timer (local)</title>
   <style>
-    :root{
-      --bg:#0b0f14;
-      --card:#121926;
-      --text:#e7eefc;
-      --muted:#a9b9d8;
-      --line:rgba(255,255,255,.14);
-      --line-strong:rgba(255,255,255,.26);
-      --btn:#2b6dff;
-      --btn2:rgba(255,255,255,.08);
-      --danger:#ff4d4d;
-      --danger-bg:rgba(255,77,77,.14);
-      --focus:#9bc0ff;
-    }
+    :root{--bg:#0b0f14;--card:#121926;--text:#e7eefc;--muted:#9fb1d1;--line:rgba(255,255,255,0.08);--btn:#2b6dff;--danger:#ff4d4d}
     *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;
-      background:radial-gradient(1000px 600px at 20% -10%, rgba(43,109,255,.14), transparent 55%),var(--bg);
-      color:var(--text);
-    }
+    body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:radial-gradient(1000px 600px at 20% -10%, rgba(43,109,255,0.12), transparent 55%),var(--bg);color:var(--text)}
     .wrap{max-width:1100px;margin:0 auto;padding:18px}
-    header.wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+    header.wrap{display:flex;align-items:center;justify-content:space-between;gap:16px}
     .title h1{margin:0 0 4px 0;font-size:20px}
     .muted{color:var(--muted)}
-    .small{font-size:12px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-    .card{
-      background:rgba(18,25,38,.92);
-      border:1px solid var(--line);
-      border-radius:12px;
-      padding:12px;
-      box-shadow:0 8px 20px rgba(0,0,0,.35);
-    }
+    .card{background:rgba(18,25,38,0.9);border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:0 8px 20px rgba(0,0,0,0.35)}
     .span2{grid-column:span 2}
     h2{margin:0 0 10px 0;font-size:16px}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
     label{display:block;font-size:12px;color:var(--muted)}
-    input,textarea,select{
-      margin-top:6px;width:100%;
-      padding:8px;border-radius:10px;
-      border:1px solid var(--line);
-      background:rgba(0,0,0,.20);
-      color:var(--text);
-      outline:none;
-    }
-    textarea{min-height:90px}
-    code{color:#cfe1ff}
-
-    /* Buttons: higher contrast + visible focus */
-    .btn, .btnGhost, .btnDanger{
-      padding:8px 10px;border-radius:10px;cursor:pointer;font-weight:700;
-      border:1px solid transparent;
-    }
-    .btn{
-      background:var(--btn); color:white; border-color:rgba(43,109,255,.45);
-    }
-    .btn:hover{filter:brightness(1.05)}
-    .btnGhost{
-      background:var(--btn2);
-      color:var(--text);
-      border-color:var(--line-strong);
-    }
-    .btnGhost:hover{filter:brightness(1.08)}
-    .btnDanger{
-      background:var(--danger-bg);
-      color:var(--danger);
-      border-color:rgba(255,77,77,.38);
-    }
-    .btnDanger:hover{filter:brightness(1.08)}
-
-    button:focus, a:focus, input:focus, select:focus, textarea:focus{
-      outline:2px solid var(--focus);
-      outline-offset:2px;
-    }
-
+    input,textarea,select{margin-top:6px;width:100%;padding:8px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,0.18);color:var(--text);outline:none}
+    textarea{min-height:80px}
+    .btn{border:0;background:var(--btn);color:white;padding:8px 10px;border-radius:10px;cursor:pointer;font-weight:600}
+    .btnGhost{background:transparent;border:1px solid var(--line)}
+    .btnDanger{color:var(--danger);border:1px solid rgba(255,77,77,0.25)}
     .list{display:flex;flex-direction:column;gap:8px}
-    .item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.12)}
+    .item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,0.12)}
     .badge{font-size:13px;padding:6px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
     table{width:100%;border-collapse:collapse}
-    th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
-    th{color:var(--muted);font-size:12px}
-    .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-
-    @media (max-width:920px){
-      .grid{grid-template-columns:1fr}
-      .span2{grid-column:auto}
-      header.wrap{flex-direction:column;align-items:flex-start}
-    }
+    th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left}
+    .small{font-size:12px}
+    .controls{display:flex;gap:8px;align-items:center}
+    .hint{color:var(--muted);font-size:12px;margin-top:6px}
+    @media (max-width:920px){.grid{grid-template-columns:1fr}.span2{grid-column:auto}}
   </style>
 </head>
 <body>
-<header class="wrap">
-  <div class="title">
-    <h1>Boss Timer</h1>
-    <p class="muted small">Preloaded bosses (once). Edit by countdown only. Mini=2h+5m, MVP=3h+5m.</p>
+  <header class="wrap">
+    <div class="title">
+      <h1>Boss Timer (local)</h1>
+      <p class="muted small">Names + countdowns converted to your local time. Data stored in browser.</p>
+    </div>
+    <div class="controls">
+      <button id="btnNotifs" class="btn">Enable notifications</button>
+      <button id="btnExport" class="btnGhost">Export JSON</button>
+      <input id="fileImport" type="file" accept="application/json" style="display:none" />
+      <button id="btnImport" class="btnGhost">Import</button>
+    </div>
+  </header>
+
+  <div class="wrap" style="padding-top:0">
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div>
+        <strong>Support this boss timer</strong>
+        <div class="muted small">If this tool helps you, consider a small donation 💙</div>
+      </div>
+      <a class="btn" href="https://paypal.me/trai" target="_blank" rel="noopener noreferrer">Donate with PayPal</a>
+    </div>
   </div>
-  <div class="controls">
-    <button id="btnNotifs" class="btn">Enable notifications</button>
-    <button id="btnExport" class="btnGhost">Export JSON</button>
-    <input id="fileImport" type="file" accept="application/json" style="display:none" />
-    <button id="btnImport" class="btnGhost">Import</button>
-  </div>
-</header>
 
-<div class="wrap" style="padding-top:0">
-  <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-    <div>
-      <strong>Support this boss timer</strong>
-      <div class="muted small">If this tool helps you, consider a small donation 💙</div>
-    </div>
-    <a class="btn" href="https://paypal.me/trai" target="_blank" rel="noopener noreferrer">Donate with PayPal</a>
-  </div>
-</div>
+  <main class="wrap grid">
+    <section class="card">
+      <h2>Add boss manually</h2>
+      <form id="addForm">
+        <div class="row">
+          <label>Name<input id="name" required placeholder="e.g., Amon Ra" /></label>
+          <label>Type<select id="type"><option value="mvp">MVP (3h)</option><option value="mini">Mini (2h)</option></select></label>
+        </div>
+        <div class="row">
+          <label>Notify before (min)<input id="lead" type="number" min="0" value="10" /></label>
+          <label>Countdown (HH:MM:SS)<input id="countdown" placeholder="e.g., 00:45:12" /></label>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn" type="submit">Save boss</button>
+          <button id="btnCancel" type="button" class="btnGhost">Reset</button>
+        </div>
+      </form>
 
-<main class="wrap grid">
-  <section class="card">
-    <h2>Quick edit (recommended)</h2>
-    <p class="muted small" style="margin-top:0">
-      Your bosses are already loaded. Just paste countdowns into the table rows and press <strong>Apply</strong>.
-    </p>
+      <hr style="margin:12px 0;border:none;border-top:1px solid var(--line)" />
 
-    <hr style="margin:12px 0;border:none;border-top:1px solid var(--line)" />
+      <h2>Bulk paste from screenshots</h2>
+      <p class="muted small">Paste lines in one of these formats (one per line):<br><em>Name, HH:MM:SS, type</em>  OR  <em>Name HH:MM:SS type</em>. Type is <strong>mvp</strong> or <strong>mini</strong>. Example: <code>Amon Ra, 00:45:12, mvp</code></p>
+      <textarea id="bulk"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="btnBulk" class="btn">Import countdowns</button>
+        <button id="btnClearBulk" class="btnGhost">Clear</button>
+      </div>
+    </section>
 
-    <h2>Bulk update countdowns</h2>
-    <p class="muted small">
-      One per line: <code>Name, HH:MM:SS, mvp|mini</code><br/>
-      Example: <code>Amon Ra, 00:45:12, mvp</code>
-    </p>
-    <textarea id="bulk"></textarea>
-    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-      <button id="btnBulk" class="btn" type="button">Import / Update</button>
-      <button id="btnClearBulk" class="btnGhost" type="button">Clear</button>
-      <button id="btnRestoreDefaults" class="btnGhost" type="button">Restore default boss list</button>
-    </div>
-  </section>
+    <section class="card">
+      <h2>Next spawns</h2>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <label class="muted small">Horizon (hrs)
+          <select id="horizon"><option>12</option><option selected>24</option><option>48</option></select>
+        </label>
+        <label class="muted small">Tick rate
+          <select id="tick"><option value="1000">1s</option><option value="2000">2s</option><option value="500">0.5s</option></select>
+        </label>
+      </div>
+      <div id="nextList" class="list"></div>
+    </section>
 
-  <section class="card">
-    <h2>Next spawns</h2>
-    <div class="controls" style="margin-bottom:8px">
-      <label>Horizon (hrs)
-        <select id="horizon">
-          <option>12</option><option selected>24</option><option>48</option><option>72</option>
-        </select>
-      </label>
-      <label>Tick
-        <select id="tick">
-          <option value="1000">1s</option>
-          <option value="2000">2s</option>
-          <option value="500">0.5s</option>
-        </select>
-      </label>
-    </div>
-    <div id="nextList" class="list"></div>
-  </section>
+    <section class="card span2">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>All bosses</h2>
+        <div style="display:flex;gap:8px">
+          <button id="btnClear" class="btnDanger btnGhost">Clear all</button>
+        </div>
+      </div>
+      <div id="tableWrap" style="margin-top:10px"></div>
+    </section>
 
-  <section class="card span2">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-      <h2 style="margin:0">All bosses (edit by countdown)</h2>
-      <button id="btnClearAll" class="btnDanger" type="button">Clear all</button>
-    </div>
-    <div id="tableWrap" style="margin-top:10px"></div>
-    <p class="muted small" style="margin-top:10px">
-      Row buttons: <strong>-10s</strong> fine-tunes, <strong>Killed</strong> resets to full respawn (2h+5 / 3h+5),
-      <strong>Apply</strong> sets the countdown you typed.
-    </p>
-  </section>
+    <section class="card span2">
+      <h2>Schedule (local times)</h2>
+      <div id="schedule" class="list"></div>
+      <p class="muted small">Tip: use the bulk paste to quickly add names + countdowns from screenshots. Keep the tab open for notifications.</p>
+    </section>
+  </main>
 
-  <section class="card span2">
-    <h2>Schedule (local times)</h2>
-    <div id="schedule" class="list"></div>
-  </section>
-</main>
+  <footer class="wrap muted small" style="padding-bottom:30px">Save this file as <code>index.html</code> and open in browser (or serve via localhost for best notifications).</footer>
 
-<footer class="wrap muted small" style="padding-bottom:30px">
-  Best reliability: run locally via <code>python3 -m http.server 8000</code> then open <code>http://localhost:8000</code>
-</footer>
-
-<script>
-(() => {
-  const STORAGE = "boss_timer_v3";
-  const NOTIF_LOG = "boss_notif_log_v3";
-  const SEEDED_KEY = "boss_timer_seeded_v3";
-
-  const $ = (id) => document.getElementById(id);
+  <script>
+  // Single-file boss timer with bulk countdown import
+  const STORAGE = 'boss_timer_v1_singlefile';
+  let state = loadState();
+  let editingId = null; // when set, Save updates an existing boss instead of adding
 
   const els = {
-    bulk: $("bulk"),
-    btnBulk: $("btnBulk"),
-    btnClearBulk: $("btnClearBulk"),
-    btnRestoreDefaults: $("btnRestoreDefaults"),
-
-    nextList: $("nextList"),
-    schedule: $("schedule"),
-    tableWrap: $("tableWrap"),
-
-    horizon: $("horizon"),
-    tick: $("tick"),
-
-    btnNotifs: $("btnNotifs"),
-    btnClearAll: $("btnClearAll"),
-
-    btnExport: $("btnExport"),
-    btnImport: $("btnImport"),
-    fileImport: $("fileImport"),
+    name: document.getElementById('name'),
+    type: document.getElementById('type'),
+    lead: document.getElementById('lead'),
+    countdown: document.getElementById('countdown'),
+    addForm: document.getElementById('addForm'),
+    btnCancel: document.getElementById('btnCancel'),
+    bulk: document.getElementById('bulk'),
+    btnBulk: document.getElementById('btnBulk'),
+    btnClearBulk: document.getElementById('btnClearBulk'),
+    nextList: document.getElementById('nextList'),
+    schedule: document.getElementById('schedule'),
+    tableWrap: document.getElementById('tableWrap'),
+    horizon: document.getElementById('horizon'),
+    tick: document.getElementById('tick'),
+    btnNotifs: document.getElementById('btnNotifs'),
+    btnClear: document.getElementById('btnClear'),
+    btnExport: document.getElementById('btnExport'),
+    btnImport: document.getElementById('btnImport'),
+    fileImport: document.getElementById('fileImport')
   };
 
-  function uuid() {
-    if (crypto && crypto.randomUUID) return crypto.randomUUID();
-    return "id-" + Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
-  }
-
-  function loadState() {
-    try { return JSON.parse(localStorage.getItem(STORAGE)) || { bosses: [] }; }
-    catch { return { bosses: [] }; }
-  }
-
-  let state = loadState();
-
-  function saveState() {
+  function loadState(){try{return JSON.parse(localStorage.getItem(STORAGE))||{bosses:[]}}catch(e){return {bosses:[]}}}
+  function saveState(){
     localStorage.setItem(STORAGE, JSON.stringify(state));
   }
 
-  function parseCountdownString(s) {
-    const m = String(s).trim().match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
-    if (!m) return null;
-    const h = +m[1], mm = +m[2], ss = +m[3];
-    return ((h*3600) + (mm*60) + ss) * 1000;
+  function clamp(n,lo,hi){if(!Number.isFinite(n))return lo;return Math.min(hi,Math.max(lo,n))}
+
+  function resetForm(){
+    els.name.value='';
+    els.type.value='mvp';
+    els.lead.value=10;
+    els.countdown.value='';
+    editingId = null;
   }
 
-  function msToHHMMSS(ms) {
-    const total = Math.max(0, Math.floor(ms/1000));
-    const h = String(Math.floor(total/3600)).padStart(2,"0");
-    const m = String(Math.floor((total%3600)/60)).padStart(2,"0");
-    const s = String(total%60).padStart(2,"0");
-    return `${h}:${m}:${s}`;
+  function parseCountdownString(s){ // HH:MM:SS -> ms
+    const m = s.trim().match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+    if(!m) return null; const h=+m[1], mm=+m[2], ss=+m[3]; return ((h*3600)+(mm*60)+ss)*1000;
   }
 
-  function fmtDate(d) {
-    return new Date(d).toLocaleString(undefined, {
-      weekday:"short", month:"short", day:"2-digit", hour:"2-digit", minute:"2-digit"
-    });
-  }
+  function addBoss(b){state.bosses.push(b);saveState();renderAll()}
 
-  function formatDuration(ms) {
-    const total = Math.max(0, Math.floor(ms/1000));
-    const h = Math.floor(total/3600);
-    const m = Math.floor((total%3600)/60);
-    const s = total%60;
-    if (h>0) return `${h}h ${m}m ${s}s`;
-    if (m>0) return `${m}m ${s}s`;
-    return `${s}s`;
-  }
+  els.addForm.addEventListener('submit', e=>{e.preventDefault();
+    const name=els.name.value.trim();
+    if(!name) return alert('name required');
 
-  function escapeHtml(s) {
-    return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
-  }
+    const type=els.type.value;
+    const lead=clamp(parseInt(els.lead.value||10,10),0,1440);
+    // Respawn interval includes a +5 minute buffer (boss must be killed to reset)
+    const baseIntervalMin = type==='mvp' ? 180 : 120;
+    const intervalMin = baseIntervalMin + 5; // kill/reset buffer
 
-  function intervalMinutesForType(type) {
-    // Includes +5m kill/reset buffer
-    const base = (type === "mini") ? 120 : 180;
-    return base + 5;
-  }
+    const cdMs = els.countdown.value ? parseCountdownString(els.countdown.value) : 0;
+    if(els.countdown.value && cdMs==null) return alert('Countdown must be HH:MM:SS');
+    const anchorISO = new Date(Date.now() + (cdMs||0)).toISOString();
 
-  // ----- Defaults (preload once) -----
-  const DEFAULT_BOSSES = [
-    // MVP
-    ["Orc Hero","mvp"],["Maya","mvp"],["Pharaoh","mvp"],["Orc Lord","mvp"],["Doppelganger","mvp"],
-    ["Amon Ra","mvp"],["Phreeoni","mvp"],["Mistress","mvp"],["Kraken","mvp"],["Eddga","mvp"],
-    // Mini
-    ["King Dramoh","mini"],["Dragon Fly","mini"],["Eclipse","mini"],["Mastering","mini"],["Ghostring","mini"],
-    ["Toad","mini"],["Deviling","mini"],["Angeling","mini"],["Dark Priest","mini"],["Vagabond Wolf","mini"],
-  ];
-
-  function seedDefaultsIfNeeded() {
-    const seeded = localStorage.getItem(SEEDED_KEY) === "1";
-    if (seeded) return;
-
-    // Only seed if no bosses exist (fresh browser)
-    if (!state.bosses || state.bosses.length === 0) {
-      const nowISO = new Date().toISOString();
-      state.bosses = DEFAULT_BOSSES.map(([name,type]) => ({
-        id: uuid(),
+    if(editingId){
+      const idx = state.bosses.findIndex(x=>x.id===editingId);
+      if(idx>=0){
+        state.bosses[idx] = {
+          ...state.bosses[idx],
+          name,
+          type,
+          notifyLead: lead,
+          rule: { type:'interval', intervalMinutes: intervalMin, anchorISO }
+        };
+        saveState();
+      }
+      editingId = null;
+    } else {
+      const boss = {
+        id: crypto.randomUUID(),
         name,
         type,
-        notifyLead: 10,
-        rule: { type:"interval", intervalMinutes: intervalMinutesForType(type), anchorISO: nowISO }
-      }));
+        notifyLead: lead,
+        rule: { type:'interval', intervalMinutes: intervalMin, anchorISO }
+      };
+      state.bosses.push(boss);
       saveState();
     }
 
-    localStorage.setItem(SEEDED_KEY, "1");
-  }
-
-  function restoreDefaults() {
-    if (!confirm("Restore default boss list? This will replace your current list.")) return;
-    const nowISO = new Date().toISOString();
-    state.bosses = DEFAULT_BOSSES.map(([name,type]) => ({
-      id: uuid(),
-      name,
-      type,
-      notifyLead: 10,
-      rule: { type:"interval", intervalMinutes: intervalMinutesForType(type), anchorISO: nowISO }
-    }));
-    saveState();
     renderAll();
-  }
-
-  // Respawn math: anchor is the next spawn time; thereafter repeats every interval
-  function nextSpawn(boss, from = new Date()) {
-    const anchor = new Date(boss.rule.anchorISO);
-    const intervalMs = boss.rule.intervalMinutes * 60 * 1000;
-    const diff = from.getTime() - anchor.getTime();
-    const k = Math.ceil(diff / intervalMs);
-    const next = new Date(anchor.getTime() + Math.max(k, 0) * intervalMs);
-    if (next.getTime() < from.getTime()) return new Date(next.getTime() + intervalMs);
-    return next;
-  }
-
-  // Unique upsert by name+type
-  function upsertBossByNameType(name, type, countdownMs, notifyLead) {
-    const normName = name.trim().toLowerCase();
-    const intervalMin = intervalMinutesForType(type);
-    const anchorISO = new Date(Date.now() + countdownMs).toISOString();
-
-    const existing = state.bosses.find(b => b.name.toLowerCase() === normName && b.type === type);
-    if (existing) {
-      existing.notifyLead = notifyLead;
-      existing.rule.intervalMinutes = intervalMin;
-      existing.rule.anchorISO = anchorISO;
-    } else {
-      state.bosses.push({
-        id: uuid(),
-        name: name.trim(),
-        type,
-        notifyLead,
-        rule: { type:"interval", intervalMinutes: intervalMin, anchorISO }
-      });
-    }
-    saveState();
-  }
-
-  // ----- Bulk update -----
-  els.btnBulk.addEventListener("click", () => {
-    const raw = els.bulk.value.trim();
-    if (!raw) return alert("Paste lines first.");
-
-    const lines = raw.split("\n").map(l => l.trim()).filter(Boolean);
-    let updated = 0, skipped = 0;
-
-    for (const line of lines) {
-      const parts = line.split(",").map(p => p.trim());
-      if (parts.length !== 3) { skipped++; continue; }
-
-      const [name, hhmmss, typeRaw] = parts;
-      const type = (typeRaw.toLowerCase() === "mini") ? "mini" : "mvp";
-      const ms = parseCountdownString(hhmmss);
-      if (ms == null || !name.trim()) { skipped++; continue; }
-
-      upsertBossByNameType(name, type, ms, 10);
-      updated++;
-    }
-
-    els.bulk.value = "";
-    renderAll();
-    alert(`Updated: ${updated} | Skipped: ${skipped}`);
+    resetForm();
   });
 
-  els.btnClearBulk.addEventListener("click", () => els.bulk.value = "");
-  els.btnRestoreDefaults.addEventListener("click", restoreDefaults);
+  els.btnCancel.addEventListener('click', resetForm);
 
-  // ----- Row actions -----
-  function applyCountdown(id) {
-    const input = els.tableWrap.querySelector(`input.cd[data-id="${id}"]`);
-    if (!input) return;
+  els.btnBulk.addEventListener('click', ()=>{
+    const raw = els.bulk.value.trim(); if(!raw) return alert('paste countdown lines first');
+    const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
+    let added=0;
+    for(const line of lines){
+      // accept: Name, HH:MM:SS, type  OR  Name HH:MM:SS type
+      let parts = line.split(',').map(p=>p.trim());
+      if(parts.length===3){
+        const [name, countdown, type] = parts; const ms = parseCountdownString(countdown);
+        if(ms==null) continue; const spawn = new Date(Date.now()+ms);
+        const baseIntervalMin = (type.toLowerCase()==='mini') ? 120 : 180;
+        const intervalMin = baseIntervalMin + 5; // kill/reset buffer
+        // Update existing boss (same name+type) instead of duplicating
+        const normName = name.trim().toLowerCase();
+        const normType = type.toLowerCase()==='mini' ? 'mini' : 'mvp';
+        const existing = state.bosses.find(b=>b.name.toLowerCase()===normName && b.type===normType);
+        if(existing){
+          existing.rule.intervalMinutes = intervalMin;
+          existing.rule.anchorISO = spawn.toISOString();
+          saveState();
+          renderAll();
+        } else {
+          const boss = {id:crypto.randomUUID(), name, type: normType, notifyLead:10, rule:{type:'interval', intervalMinutes:intervalMin, anchorISO: spawn.toISOString()}};
+          addBoss(boss);
+        }
+        added++;
+        continue;
+      }
+      // try space-separated
+      const m = line.match(/^(.*?)\s+(\d{1,2}:\d{2}:\d{2})\s+(mvp|mini)$/i);
+      if(m){ const name=m[1].trim(); const countdown=m[2]; const type=m[3].toLowerCase(); const ms=parseCountdownString(countdown); if(ms==null) continue; const spawn=new Date(Date.now()+ms); const baseIntervalMin=(type==='mini')?120:180;
+      const intervalMin = baseIntervalMin + 5; // kill/reset buffer const boss={id:crypto.randomUUID(), name, type, notifyLead:10, rule:{type:'interval', intervalMinutes:intervalMin, anchorISO:spawn.toISOString()}}; addBoss(boss); added++; continue; }
+      // try "Name HH:MM:SS" (default mvp)
+      const m2 = line.match(/^(.*?)\s+(\d{1,2}:\d{2}:\d{2})$/);
+      if(m2){ const name=m2[1].trim(); const countdown=m2[2]; const ms=parseCountdownString(countdown); if(ms==null) continue; const spawn=new Date(Date.now()+ms); const boss={id:crypto.randomUUID(), name, type:'mvp', notifyLead:10, rule:{type:'interval', intervalMinutes:(180+5), anchorISO:spawn.toISOString()}}; addBoss(boss); added++; continue; }
+      // ignore
+    }
+    alert('Imported '+added+' bosses'); els.bulk.value='';
+  });
 
-    const ms = parseCountdownString(input.value || "");
-    if (ms == null) return alert("Countdown must be HH:MM:SS");
+  els.btnClearBulk.addEventListener('click', ()=>els.bulk.value='');
 
-    const b = state.bosses.find(x => x.id === id);
-    if (!b) return;
+  function fmtDate(d){return new Date(d).toLocaleString(undefined,{weekday:'short',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit'})}
+  function formatDuration(ms){const total=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(total/3600); const m=Math.floor((total%3600)/60); const s=total%60; if(h>0) return `${h}h ${m}m ${s}s`; if(m>0) return `${m}m ${s}s`; return `${s}s`}
 
-    b.rule.anchorISO = new Date(Date.now() + ms).toISOString();
-    input.dataset.dirty = "0";
-    saveState();
-    renderNext(); renderSchedule(); updateCountdownInputs();
-  }
+  function nextSpawn(boss, from=new Date()){ if(boss.rule.type==='interval'){ const anchor=new Date(boss.rule.anchorISO); const intervalMs = boss.rule.intervalMinutes*60*1000; const diff = from.getTime()-anchor.getTime(); const k = Math.ceil(diff/intervalMs); const next = new Date(anchor.getTime()+Math.max(k,0)*intervalMs); if(next.getTime()<from.getTime()) return new Date(next.getTime()+intervalMs); return next; } return new Date(boss.rule.anchorISO); }
 
-  function minusTen(id) {
-    const input = els.tableWrap.querySelector(`input.cd[data-id="${id}"]`);
-    if (!input) return;
+  let activeEditId = null;
 
-    const ms = parseCountdownString(input.value || "");
-    if (ms == null) return;
-
-    const newMs = Math.max(0, ms - 10000);
-    input.value = msToHHMMSS(newMs);
-
-    const b = state.bosses.find(x => x.id === id);
-    if (!b) return;
-
-    b.rule.anchorISO = new Date(Date.now() + newMs).toISOString();
-    input.dataset.dirty = "0";
-    saveState();
-    renderNext(); renderSchedule(); updateCountdownInputs();
-  }
-
-  function killed(id) {
-    const b = state.bosses.find(x => x.id === id);
-    if (!b) return;
-    const intervalMs = b.rule.intervalMinutes * 60 * 1000;
-    b.rule.anchorISO = new Date(Date.now() + intervalMs).toISOString();
-    saveState();
-    renderNext(); renderSchedule(); updateCountdownInputs();
-  }
-
-  function delBoss(id) {
-    if (!confirm("Remove this boss from your list?")) return;
-    state.bosses = state.bosses.filter(b => b.id !== id);
-    saveState();
-    renderAll();
-  }
-
-  // ----- Render -----
   function renderNext() {
     const now = new Date();
-    const items = state.bosses
-      .map(b => ({ b, next: nextSpawn(b, now) }))
-      .map(x => ({ ...x, ms: x.next.getTime() - now.getTime() }))
-      .sort((a,b) => a.ms - b.ms);
+    const ACTIVE_WINDOW_MS = 3 * 60 * 1000; // 3 minutes
+
+    const items = state.bosses.map(b => {
+      const intervalMs = b.rule.intervalMinutes * 60 * 1000;
+      const next = nextSpawn(b, now);
+      // Since nextSpawn() returns the next upcoming spawn, the most recent spawn is one interval before it.
+      const last = new Date(next.getTime() - intervalMs);
+      const activeUntil = new Date(last.getTime() + ACTIVE_WINDOW_MS);
+      const isActive = now >= last && now < activeUntil;
+
+      return {
+        b,
+        next,
+        last,
+        isActive,
+        activeRemainingMs: isActive ? (activeUntil.getTime() - now.getTime()) : 0,
+        msToNext: next.getTime() - now.getTime(),
+      };
+    });
+
+    // Sort: active bosses first (soonest to expire at top), then by next spawn time
+    items.sort((a, b) => {
+      if (a.isActive && !b.isActive) return -1;
+      if (!a.isActive && b.isActive) return 1;
+      if (a.isActive && b.isActive) return a.activeRemainingMs - b.activeRemainingMs;
+      return a.msToNext - b.msToNext;
+    });
 
     if (items.length === 0) {
       els.nextList.innerHTML = `<p class="muted">No bosses in your list. Restore defaults to start.</p>`;
       return;
     }
 
-    els.nextList.innerHTML = items.map(it => `
-      <div class="item">
-        <div>
-          <strong>${escapeHtml(it.b.name)}</strong>
-          <div class="muted small">Next: ${escapeHtml(fmtDate(it.next))}</div>
-        </div>
-        <div class="badge">${escapeHtml(formatDuration(it.ms))}</div>
-      </div>
-    `).join("");
-  }
+    els.nextList.innerHTML = items.map(it => {
+      const badge = it.isActive
+        ? `<div class="badge" style="color:#fff;border-color:rgba(43,109,255,.55)">ACTIVE</div>`
+        : `<div class="badge">${escapeHtml(formatDuration(it.msToNext))}</div>`;
 
-  function renderSchedule() {
-    const now = new Date();
-    const hrs = parseInt(els.horizon.value, 10);
-    const end = new Date(now.getTime() + hrs * 3600 * 1000);
+      const subline = it.isActive
+        ? `<div class="muted small">Active window: ~${escapeHtml(formatDuration(it.activeRemainingMs))} remaining • Next cycle: ${escapeHtml(fmtDate(it.next))}</div>`
+        : `<div class="muted small">Next: ${escapeHtml(fmtDate(it.next))}</div>`;
 
-    const all = [];
-    for (const b of state.bosses) {
-      let t = nextSpawn(b, now);
-      let safety = 0;
-      while (t <= end && safety++ < 500) {
-        all.push({ b, t });
-        t = nextSpawn(b, new Date(t.getTime() + 1000));
-      }
-    }
-    all.sort((a,b) => a.t - b.t);
-
-    if (all.length === 0) {
-      els.schedule.innerHTML = `<p class="muted">No upcoming spawns in this window.</p>`;
-      return;
-    }
-
-    els.schedule.innerHTML = all.map(it => `
-      <div class="item">
-        <div>
-          <strong>${escapeHtml(it.b.name)}</strong>
-          <div class="muted small">${escapeHtml(fmtDate(it.t))}</div>
-        </div>
-        <div class="badge">${it.b.notifyLead}m lead</div>
-      </div>
-    `).join("");
-  }
-
-  function renderTable() {
-    if (!state.bosses || state.bosses.length === 0) {
-      els.tableWrap.innerHTML = `<p class="muted">No bosses. Click “Restore default boss list”.</p>`;
-      return;
-    }
-
-    const rows = state.bosses.map(b => {
-      const hrs = (b.rule.intervalMinutes / 60).toFixed(2).replace(/\.00$/,"");
       return `
-        <tr>
-          <td>
-            <strong>${escapeHtml(b.name)}</strong>
-            <div class="muted small">${escapeHtml(b.type.toUpperCase())} • every ${hrs}h</div>
-          </td>
-          <td>${b.notifyLead} min</td>
-          <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <input class="cd" data-id="${b.id}" inputmode="numeric" placeholder="HH:MM:SS" style="width:120px" />
-            <button class="btnGhost minus10" data-id="${b.id}" type="button">-10s</button>
-            <button class="btnGhost killed" data-id="${b.id}" type="button">Killed</button>
-            <button class="btn apply" data-id="${b.id}" type="button">Apply</button>
-            <button class="btnDanger del" data-id="${b.id}" type="button">Remove</button>
-          </td>
-        </tr>
+        <div class="item">
+          <div>
+            <strong>${escapeHtml(it.b.name)}</strong>
+            ${subline}
+          </div>
+          ${badge}
+        </div>
       `;
     }).join("");
-
-    els.tableWrap.innerHTML = `
-      <table>
-        <thead><tr><th>Boss</th><th>Notify</th><th>Countdown controls</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
-
-    // Fill countdown inputs (but DO NOT overwrite while user edits)
-    updateCountdownInputs(true);
-
-    els.tableWrap.querySelectorAll("button.apply").forEach(btn =>
-      btn.addEventListener("click", () => applyCountdown(btn.dataset.id))
-    );
-    els.tableWrap.querySelectorAll("button.minus10").forEach(btn =>
-      btn.addEventListener("click", () => minusTen(btn.dataset.id))
-    );
-    els.tableWrap.querySelectorAll("button.killed").forEach(btn =>
-      btn.addEventListener("click", () => killed(btn.dataset.id))
-    );
-    els.tableWrap.querySelectorAll("button.del").forEach(btn =>
-      btn.addEventListener("click", () => delBoss(btn.dataset.id))
-    );
-
-    els.tableWrap.querySelectorAll("input.cd").forEach(inp => {
-      inp.addEventListener("input", () => inp.dataset.dirty = "1");
-      inp.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter") {
-          ev.preventDefault();
-          applyCountdown(inp.dataset.id);
-        }
-      });
-    });
   }
 
-  function updateCountdownInputs(force=false) {
-    const now = new Date();
-    state.bosses.forEach(b => {
-      const input = els.tableWrap.querySelector(`input.cd[data-id="${b.id}"]`);
-      if (!input) return;
-      if (!force) {
-        if (document.activeElement === input) return;
-        if (input.dataset.dirty === "1") return;
-      }
-      const next = nextSpawn(b, now);
-      input.value = msToHHMMSS(next.getTime() - now.getTime());
-      input.dataset.dirty = "0";
-    });
+  function renderSchedule(){ const now=new Date(); const hrs = parseInt(els.horizon.value,10); const end = new Date(now.getTime()+hrs*3600*1000); const all=[];
+    for(const b of state.bosses){ let t = nextSpawn(b, now); let safety=0; while(t<=end && safety++<500){ all.push({b,t}); t = nextSpawn(b, new Date(t.getTime()+1000)); }}
+    all.sort((a,b)=>a.t-b.t);
+    if(all.length===0){els.schedule.innerHTML='<p class="muted">No upcoming events in window.</p>';return}
+    els.schedule.innerHTML = all.map(it=>`<div class="item"><div><strong>${escapeHtml(it.b.name)}</strong><div class="muted small">${escapeHtml(fmtDate(it.t))}</div></div><div class="badge">${it.b.notifyLead}m lead</div></div>`).join('');
   }
 
-  function renderAll() {
+  function renderAll(){
     renderNext();
     renderTable();
     renderSchedule();
   }
 
-  // ----- Notifications -----
-  async function requestNotifs() {
-    if (!("Notification" in window)) return alert("Notifications not supported.");
-    const p = await Notification.requestPermission();
-    alert(p === "granted" ? "Notifications enabled." : "Not enabled.");
-  }
-
-  function loadNotifLog() {
-    try { return JSON.parse(localStorage.getItem(NOTIF_LOG) || "{}"); }
-    catch { return {}; }
-  }
-  function saveNotifLog(log) {
-    localStorage.setItem(NOTIF_LOG, JSON.stringify(log));
-  }
-
-  function maybeNotify() {
-    if (Notification.permission !== "granted") return;
+  function updateCountdownInputs(){
     const now = new Date();
-    const log = loadNotifLog();
-
-    for (const b of state.bosses) {
+    state.bosses.forEach(b=>{
+      const el = els.tableWrap.querySelector(`input.cd[data-id="${b.id}"]`);
+      if(!el) return;
+      // Don't overwrite while user is typing or if they've modified it
+      if(document.activeElement === el) return;
+      if(el.dataset.dirty === '1') return;
       const next = nextSpawn(b, now);
-      const leadMs = (b.notifyLead || 0) * 60 * 1000;
-      if (leadMs <= 0) continue;
-
-      const fireAt = next.getTime() - leadMs;
-      const key = `${b.id}|${next.toISOString()}`;
-
-      if (Math.abs(now.getTime() - fireAt) <= 1200 && !log[key]) {
-        log[key] = Date.now();
-        saveNotifLog(log);
-        new Notification(`Boss soon: ${b.name}`, {
-          body: `Spawns at ${fmtDate(next)} (in ~${b.notifyLead} min)`,
-          tag: key
-        });
-      }
-    }
-
-    // cleanup 7 days
-    const cutoff = Date.now() - 7*24*3600*1000;
-    let changed = false;
-    for (const k in log) {
-      if (log[k] < cutoff) { delete log[k]; changed = true; }
-    }
-    if (changed) saveNotifLog(log);
+      el.value = msToHHMMSS(next.getTime()-now.getTime());
+    });
   }
 
-  // ----- Export / Import -----
-  els.btnExport.addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type:"application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "boss-timer.json";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  });
+  function startEdit(id){ const b = state.bosses.find(x=>x.id===id); if(!b) return; els.name.value=b.name; els.type.value=b.type; els.lead.value=b.notifyLead; editingId = id;
+    // set countdown field to time remaining until next spawn
+    const now = new Date();
+    const next = nextSpawn(b, now);
+    const ms = Math.max(0, next.getTime() - now.getTime());
+    els.countdown.value = msToHHMMSS(ms);
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
 
-  els.btnImport.addEventListener("click", () => els.fileImport.click());
-  els.fileImport.addEventListener("change", (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (!f) return;
-    const r = new FileReader();
-    r.onload = () => {
-      try {
-        const parsed = JSON.parse(String(r.result));
-        if (!parsed || !Array.isArray(parsed.bosses)) throw new Error("Invalid file");
-        state = parsed;
-        saveState();
-        renderAll();
-        alert("Imported.");
-      } catch (err) {
-        alert("Import failed: " + (err && err.message ? err.message : "unknown"));
-      } finally {
-        e.target.value = "";
-      }
-    };
-    r.readAsText(f);
-  });
+  function deleteBoss(id){ if(!confirm('Delete?')) return; state.bosses = state.bosses.filter(x=>x.id!==id); saveState(); renderAll(); }
 
-  // ----- Other UI -----
-  els.btnNotifs.addEventListener("click", requestNotifs);
-  els.btnClearAll.addEventListener("click", () => {
-    if (!confirm("Clear ALL bosses?")) return;
-    state.bosses = [];
+  function escapeHtml(s){return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')}
+
+  function msToHHMMSS(ms){
+    const total = Math.max(0, Math.floor(ms/1000));
+    const h = String(Math.floor(total/3600)).padStart(2,'0');
+    const m = String(Math.floor((total%3600)/60)).padStart(2,'0');
+    const s = String(total%60).padStart(2,'0');
+    return `${h}:${m}:${s}`;
+  }
+
+  function applyCountdown(id){
+    const input = document.querySelector(`input.cd[data-id="${id}"]`);
+    if(!input) return;
+    const ms = parseCountdownString(input.value||'');
+    if(ms==null) return alert('Countdown must be HH:MM:SS');
+    const b = state.bosses.find(x=>x.id===id);
+    if(!b) return;
+    b.rule.anchorISO = new Date(Date.now()+ms).toISOString();
+    input.dataset.dirty = '0';
     saveState();
-    renderAll();
-  });
+    // Don't rebuild the table; keep your cursor/edits stable
+    renderNext();
+    renderSchedule();
+    updateCountdownInputs();
+  }
 
-  // ----- Tick -----
-  let timer = null;
-  function restartTick() {
-    if (timer) clearInterval(timer);
-    timer = setInterval(() => {
+  function minusTenSeconds(id){
+    const input = document.querySelector(`input.cd[data-id="${id}"]`);
+    if(!input) return;
+    const ms = parseCountdownString(input.value||'');
+    if(ms==null) return;
+    const newMs = Math.max(0, ms - 10000);
+    input.value = msToHHMMSS(newMs);
+    const b = state.bosses.find(x=>x.id===id);
+    if(!b) return;
+    b.rule.anchorISO = new Date(Date.now()+newMs).toISOString();
+    input.dataset.dirty = '0';
+    saveState();
+    renderNext();
+    renderSchedule();
+    updateCountdownInputs();
+  }
+
+  function markKilled(id){
+    const b = state.bosses.find(x=>x.id===id);
+    if(!b) return;
+    // Boss respawn timer starts after kill; intervalMinutes already includes +5m buffer
+    const intervalMs = (b.rule.intervalMinutes||0) * 60 * 1000;
+    b.rule.anchorISO = new Date(Date.now() + intervalMs).toISOString();
+    saveState();
+    renderNext();
+    renderSchedule();
+    updateCountdownInputs();
+  }
+
+  function markKilled(id){
+    const b = state.bosses.find(x=>x.id===id);
+    if(!b) return;
+    // Boss just died: reset cycle from NOW
+    b.rule.anchorISO = new Date().toISOString();
+    saveState();
+    renderNext();
+    renderSchedule();
+    updateCountdownInputs();
+  }
+
+  // Notifications
+  function maybeNotify(){ if(Notification.permission!=='granted') return; const now=new Date(); const log = JSON.parse(localStorage.getItem('boss_notif_log_v1')||'{}'); for(const b of state.bosses){ const next = nextSpawn(b, now); const leadMs = (b.notifyLead||0)*60*1000; if(leadMs<=0) continue; const fireAt = next.getTime()-leadMs; const windowMs=1200; const key = `${b.id}|${next.toISOString()}`; if(Math.abs(now.getTime()-fireAt)<=windowMs && !log[key]){ log[key]=Date.now(); localStorage.setItem('boss_notif_log_v1', JSON.stringify(log)); new Notification(`Boss soon: ${b.name}`,{body:`Spawns at ${fmtDate(next)} (in ~${b.notifyLead} min)`,tag:key}); } }
+    // cleanup
+    const cutoff = Date.now()-7*24*3600*1000; let changed=false; for(const k in log){ if(log[k]<cutoff){ delete log[k]; changed=true; }} if(changed) localStorage.setItem('boss_notif_log_v1',JSON.stringify(log)); }
+
+  // tick
+  let tickHandle=null;
+  function restartTick(){
+    if(tickHandle) clearInterval(tickHandle);
+    tickHandle=setInterval(()=>{
+      // Update live views without rebuilding the editable table
       renderNext();
       renderSchedule();
-      updateCountdownInputs(false);
+      updateCountdownInputs();
       maybeNotify();
-    }, parseInt(els.tick.value, 10));
+    }, parseInt(els.tick.value,10));
   }
-  els.tick.addEventListener("change", restartTick);
-  els.horizon.addEventListener("change", () => renderSchedule());
 
-  // Seed defaults once per fresh browser
-  seedDefaultsIfNeeded();
+  els.tick.addEventListener('change', restartTick);
+  els.horizon.addEventListener('change', renderAll);
 
-  // Initial render
-  renderAll();
-  restartTick();
-})();
-</script>
+  els.btnNotifs.addEventListener('click', async ()=>{ if(!('Notification' in window)){ alert('Notifications not supported'); return } const p = await Notification.requestPermission(); if(p==='granted') alert('Notifications enabled'); else alert('Not enabled'); });
+
+  els.btnClear.addEventListener('click', ()=>{ if(!confirm('Clear all bosses?')) return; state.bosses=[]; saveState(); renderAll(); });
+
+  els.btnExport.addEventListener('click', ()=>{ const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='boss-timer.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); });
+
+  els.btnImport.addEventListener('click', ()=>els.fileImport.click());
+  els.fileImport.addEventListener('change', e=>{ const file=e.target.files[0]; if(!file) return; const r=new FileReader(); r.onload=()=>{ try{ const parsed=JSON.parse(r.result); if(!parsed||!Array.isArray(parsed.bosses)) throw new Error('invalid'); state=parsed; saveState(); renderAll(); alert('Imported'); }catch(err){ alert('Import failed: '+err.message) } finally{ e.target.value=''} }; r.readAsText(file); });
+
+  // initial render
+  renderAll(); restartTick();
+  // expose for debugging
+  window._bt = {state, saveState, nextSpawn};
+  </script>
 </body>
 </html>
