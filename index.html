@@ -182,9 +182,9 @@
 
 <script>
 (() => {
-  const STORAGE = "boss_timer_v4";
-  const SEEDED_KEY = "boss_timer_seeded_v4";
-  const NOTIF_LOG = "boss_notif_log_v4";
+  const STORAGE = "boss_timer";
+  const SEEDED_KEY = "boss_timer_seeded";
+  const NOTIF_LOG = "boss_notif_log";
 
   const ACTIVE_WINDOW_MS = 3 * 60 * 1000; // 3 minutes
 
@@ -215,12 +215,33 @@
     if (crypto && crypto.randomUUID) return crypto.randomUUID();
     return "id-" + Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
   }
+  function migrateStorage() {
+  // If new key already exists, do nothing
+  if (localStorage.getItem("boss_timer")) return;
 
+  // Try older keys (add more if needed)
+  const legacyKeys = [
+    "boss_timer_v4",
+    "boss_timer_v3",
+    "boss_timer_v2",
+    "boss_timer_v1"
+  ];
+
+  for (const key of legacyKeys) {
+    const val = localStorage.getItem(key);
+    if (val) {
+      localStorage.setItem("boss_timer", val);
+      console.log("Migrated data from", key);
+      break;
+    }
+  }
+}
   function loadState() {
     try { return JSON.parse(localStorage.getItem(STORAGE)) || { bosses: [] }; }
     catch { return { bosses: [] }; }
   }
 
+  migrateStorage();
   let state = loadState();
 
   function saveState() {
