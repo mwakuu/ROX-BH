@@ -182,7 +182,6 @@
 
 <script>
 (() => {
-  // Stable storage keys (do NOT version these)
   const STORAGE = "boss_timer";
   const SEEDED_KEY = "boss_timer_seeded";
   const NOTIF_LOG = "boss_notif_log";
@@ -217,22 +216,32 @@
     return "id-" + Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
   }
 
+  // 3h - 1s, 2h - 1s
+  function intervalMsForType(type) {
+    return (type === "mini")
+      ? (2 * 60 * 60 * 1000 - 1000)
+      : (3 * 60 * 60 * 1000 - 1000);
+  }
+
+  const DEFAULT_BOSSES = [
+    // MVP
+    ["Orc Hero","mvp"],["Maya","mvp"],["Pharaoh","mvp"],["Orc Lord","mvp"],["Doppelganger","mvp"],
+    ["Amon Ra","mvp"],["Phreeoni","mvp"],["Mistress","mvp"],["Kraken","mvp"],["Eddga","mvp"],
+    // Mini
+    ["King Dramoh","mini"],["Dragon Fly","mini"],["Eclipse","mini"],["Mastering","mini"],["Ghostring","mini"],
+    ["Toad","mini"],["Deviling","mini"],["Angeling","mini"],["Dark Priest","mini"],["Vagabond Wolf","mini"],
+  ];
+
   function migrateStorage() {
-    // If new key already exists, do nothing
+    // If current key exists, do nothing
     if (localStorage.getItem(STORAGE)) return;
 
-    const legacyKeys = [
-      "boss_timer_v4",
-      "boss_timer_v3",
-      "boss_timer_v2",
-      "boss_timer_v1"
-    ];
-
+    const legacyKeys = ["boss_timer_v4","boss_timer_v3","boss_timer_v2","boss_timer_v1"];
     for (const key of legacyKeys) {
       const val = localStorage.getItem(key);
       if (val) {
         localStorage.setItem(STORAGE, val);
-        console.log("Migrated data from", key);
+        console.log("Migrated data from", key, "->", STORAGE);
         break;
       }
     }
@@ -245,6 +254,20 @@
 
   function saveState() {
     localStorage.setItem(STORAGE, JSON.stringify(state));
+  }
+
+  function nextSpawnWithInterval(anchorISO, intervalMs, fromDate) {
+    const anchor = new Date(anchorISO);
+    const from = fromDate || new Date();
+    const diff = from.getTime() - anchor.getTime();
+    const k = Math.ceil(diff / intervalMs);
+    const next = new Date(anchor.getTime() + Math.max(k, 0) * intervalMs);
+    return (next.getTime() < from.getTime()) ? new Date(next.getTime() + intervalMs) : next;
+  }
+
+  function nextSpawn(boss, from = new Date()) {
+    const intervalMs = boss.rule.intervalMs || (boss.rule.intervalMinutes * 60 * 1000);
+    return nextSpawnWithInterval(boss.rule.anchorISO, intervalMs, from);
   }
 
   function parseCountdownString(s) {
@@ -282,37 +305,11 @@
     return String(s).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   }
 
-  // New truth: 3h - 1s, 2h - 1s
-  function intervalMsForType(type) {
-    return (type === "mini")
-      ? (2 * 60 * 60 * 1000 - 1000)
-      : (3 * 60 * 60 * 1000 - 1000);
-  }
-
-  function nextSpawnWithInterval(anchorISO, intervalMs, fromDate) {
-    const anchor = new Date(anchorISO);
-    const from = fromDate || new Date();
-    const diff = from.getTime() - anchor.getTime();
-    const k = Math.ceil(diff / intervalMs);
-    const next = new Date(anchor.getTime() + Math.max(k, 0) * intervalMs);
-    return (next.getTime() < from.getTime()) ? new Date(next.getTime() + intervalMs) : next;
-  }
-
-  // Default bosses (shown when list is empty)
-  const DEFAULT_BOSSES = [
-    // MVP
-    ["Orc Hero","mvp"],["Maya","mvp"],["Pharaoh","mvp"],["Orc Lord","mvp"],["Doppelganger","mvp"],
-    ["Amon Ra","mvp"],["Phreeoni","mvp"],["Mistress","mvp"],["Kraken","mvp"],["Eddga","mvp"],
-    // Mini
-    ["King Dramoh","mini"],["Dragon Fly","mini"],["Eclipse","mini"],["Mastering","mini"],["Ghostring","mini"],
-    ["Toad","mini"],["Deviling","mini"],["Angeling","mini"],["Dark Priest","mini"],["Vagabond Wolf","mini"],
-  ];
-
-  // --- State init (ORDER MATTERS) ---
+  // --- BOOT ORDER (CRITICAL) ---
   migrateStorage();
-  let state = loadState();
+  let state = loadState();  // <— load once, after migrateStorage
 
-  // Preserve each boss's current "next spawn" while changing interval to the new correct value
+  // Migration: preserve current "next spawn" while updating intervalMs to the new correct values
   function migrateIntervalsPreserveNext() {
     if (!state?.bosses?.length) return;
 
@@ -331,7 +328,6 @@
 
       const newIntervalMs = intervalMsForType(b.type);
 
-      // If missing old interval, just set new interval
       if (!oldIntervalMs) {
         b.rule.intervalMs = newIntervalMs;
         delete b.rule.intervalMinutes;
@@ -339,18 +335,18 @@
         continue;
       }
 
-      // Already close enough to new interval
       if (Math.abs(oldIntervalMs - newIntervalMs) < 500) {
-        b.rule.intervalMs = oldIntervalMs; // normalize
+        // Normalize to intervalMs storage
+        b.rule.intervalMs = oldIntervalMs;
         delete b.rule.intervalMinutes;
         continue;
       }
 
-      // Preserve the next spawn time based on the OLD interval
-      const next = nextSpawnWithInterval(b.rule.anchorISO, oldIntervalMs, now);
+      // Preserve the NEXT spawn time computed under OLD rules
+      const preservedNext = nextSpawnWithInterval(b.rule.anchorISO, oldIntervalMs, now);
 
-      // Switch to NEW interval but keep the same next spawn (no visible reset)
-      b.rule.anchorISO = next.toISOString();
+      // Switch to NEW interval but keep the same next spawn anchor
+      b.rule.anchorISO = preservedNext.toISOString();
       b.rule.intervalMs = newIntervalMs;
       delete b.rule.intervalMinutes;
       changed = true;
@@ -359,8 +355,8 @@
     if (changed) saveState();
   }
 
-  // Seed defaults if empty (even if seeded flag exists)
   function seedDefaultsIfNeeded() {
+    // Only seed if EMPTY. Never overwrite existing bosses/times.
     if (!state.bosses || state.bosses.length === 0) {
       const nowISO = new Date().toISOString();
       state.bosses = DEFAULT_BOSSES.map(([name, type]) => ({
@@ -389,13 +385,7 @@
     renderAll();
   }
 
-  // Next spawn (uses intervalMs; supports legacy intervalMinutes)
-  function nextSpawn(boss, from = new Date()) {
-    const intervalMs = boss.rule.intervalMs || (boss.rule.intervalMinutes * 60 * 1000);
-    return nextSpawnWithInterval(boss.rule.anchorISO, intervalMs, from);
-  }
-
-  // Upsert by name+type (bulk import)
+  // Upsert by name+type
   function upsertBossByNameType(name, type, countdownMs, notifyLead) {
     const normName = name.trim().toLowerCase();
     const intervalMs = intervalMsForType(type);
@@ -500,7 +490,6 @@
     renderAll();
   }
 
-  // NEXT SPAWNS with ACTIVE window
   function renderNext() {
     const now = new Date();
 
@@ -568,7 +557,7 @@
         t = nextSpawn(b, new Date(t.getTime() + 1000));
       }
     }
-    all.sort((a, b) => a.t - b.t);
+    all.sort((a,b) => a.t - b.t);
 
     if (all.length === 0) {
       els.schedule.innerHTML = `<p class="muted">No upcoming spawns in this window.</p>`;
@@ -647,7 +636,7 @@
     });
   }
 
-  function updateCountdownInputs(force = false) {
+  function updateCountdownInputs(force=false) {
     const now = new Date();
     state.bosses.forEach(b => {
       const input = els.tableWrap.querySelector(`input.cd[data-id="${b.id}"]`);
@@ -708,19 +697,11 @@
         });
       }
     }
-
-    // cleanup 7 days
-    const cutoff = Date.now() - 7 * 24 * 3600 * 1000;
-    let changed = false;
-    for (const k in log) {
-      if (log[k] < cutoff) { delete log[k]; changed = true; }
-    }
-    if (changed) saveNotifLog(log);
   }
 
   // Export / Import
   els.btnExport.addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type:"application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -773,13 +754,12 @@
       maybeNotify();
     }, parseInt(els.tick.value, 10));
   }
-
   els.tick.addEventListener("change", restartTick);
   els.horizon.addEventListener("change", () => renderSchedule());
 
-  // ---- Boot sequence ----
-  migrateIntervalsPreserveNext();  // preserve next spawn while switching to new intervals
-  seedDefaultsIfNeeded();          // if empty, restore default list
+  // ---- FINAL BOOT ----
+  migrateIntervalsPreserveNext();  // only adjusts intervals; preserves next spawn
+  seedDefaultsIfNeeded();          // only seeds if empty (won't overwrite)
   renderAll();
   restartTick();
 })();
