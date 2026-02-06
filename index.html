@@ -182,6 +182,7 @@
 
 <script>
 (() => {
+  // Stable storage keys (do NOT version these)
   const STORAGE = "boss_timer";
   const SEEDED_KEY = "boss_timer_seeded";
   const NOTIF_LOG = "boss_notif_log";
@@ -215,139 +216,89 @@
     if (crypto && crypto.randomUUID) return crypto.randomUUID();
     return "id-" + Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
   }
+
   function migrateStorage() {
-  // If new key already exists, do nothing
-  if (localStorage.getItem("boss_timer")) return;
+    // If new key already exists, do nothing
+    if (localStorage.getItem(STORAGE)) return;
 
-  // Try older keys (add more if needed)
-  const legacyKeys = [
-    "boss_timer_v4",
-    "boss_timer_v3",
-    "boss_timer_v2",
-    "boss_timer_v1"
-  ];
+    const legacyKeys = [
+      "boss_timer_v4",
+      "boss_timer_v3",
+      "boss_timer_v2",
+      "boss_timer_v1"
+    ];
 
-  for (const key of legacyKeys) {
-    const val = localStorage.getItem(key);
-    if (val) {
-      localStorage.setItem("boss_timer", val);
-      console.log("Migrated data from", key);
-      break;
+    for (const key of legacyKeys) {
+      const val = localStorage.getItem(key);
+      if (val) {
+        localStorage.setItem(STORAGE, val);
+        console.log("Migrated data from", key);
+        break;
+      }
     }
   }
-}
+
   function loadState() {
     try { return JSON.parse(localStorage.getItem(STORAGE)) || { bosses: [] }; }
     catch { return { bosses: [] }; }
   }
-  
-  let state = loadState();
-migrateIntervalsPreserveNext();
-  
-  migrateStorage();
-  let state = loadState();
 
   function saveState() {
     localStorage.setItem(STORAGE, JSON.stringify(state));
   }
 
-  function nextSpawnWithInterval(anchorISO, intervalMs, fromDate){
-  const anchor = new Date(anchorISO);
-  const from = fromDate || new Date();
-  const diff = from.getTime() - anchor.getTime();
-  const k = Math.ceil(diff / intervalMs);
-  const next = new Date(anchor.getTime() + Math.max(k, 0) * intervalMs);
-  return (next.getTime() < from.getTime()) ? new Date(next.getTime() + intervalMs) : next;
-}
-
-// Migrate existing saved bosses:
-// - preserve each boss's current "next spawn"
-// - switch interval to new correct interval (3h-1s / 2h-1s)
-function migrateIntervalsPreserveNext(){
-  if (!state?.bosses?.length) return;
-
-  const now = new Date();
-  let changed = false;
-
-  for (const b of state.bosses) {
-    if (!b.rule) continue;
-
-    // OLD interval could be stored as minutes (125/185) or already as ms
-    const oldIntervalMs =
-      (typeof b.rule.intervalMs === "number" && b.rule.intervalMs > 0)
-        ? b.rule.intervalMs
-        : (typeof b.rule.intervalMinutes === "number" && b.rule.intervalMinutes > 0)
-          ? b.rule.intervalMinutes * 60 * 1000
-          : null;
-
-    const newIntervalMs = intervalMsForType(b.type);
-
-    // If we can't read old interval, just set the new one (won't preserve perfectly)
-    if (!oldIntervalMs) {
-      b.rule.intervalMs = newIntervalMs;
-      delete b.rule.intervalMinutes;
-      changed = true;
-      continue;
-    }
-
-    // If already on new interval, skip
-    if (Math.abs(oldIntervalMs - newIntervalMs) < 500) continue;
-
-    // Preserve the next spawn time as of now using the old interval
-    const next = nextSpawnWithInterval(b.rule.anchorISO, oldIntervalMs, now);
-
-    // Switch to new interval, but keep anchor at that same next spawn
-    b.rule.anchorISO = next.toISOString();
-    b.rule.intervalMs = newIntervalMs;
-    delete b.rule.intervalMinutes;
-    changed = true;
-  }
-
-  if (changed) saveState();
-}   
-  
   function parseCountdownString(s) {
     const m = String(s).trim().match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
     if (!m) return null;
     const h = +m[1], mm = +m[2], ss = +m[3];
-    return ((h*3600) + (mm*60) + ss) * 1000;
+    return ((h * 3600) + (mm * 60) + ss) * 1000;
   }
 
   function msToHHMMSS(ms) {
-    const total = Math.max(0, Math.floor(ms/1000));
-    const h = String(Math.floor(total/3600)).padStart(2,"0");
-    const m = String(Math.floor((total%3600)/60)).padStart(2,"0");
-    const s = String(total%60).padStart(2,"0");
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const h = String(Math.floor(total / 3600)).padStart(2, "0");
+    const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+    const s = String(total % 60).padStart(2, "0");
     return `${h}:${m}:${s}`;
   }
 
   function fmtDate(d) {
     return new Date(d).toLocaleString(undefined, {
-      weekday:"short", month:"short", day:"2-digit", hour:"2-digit", minute:"2-digit"
+      weekday: "short", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit"
     });
   }
 
   function formatDuration(ms) {
-    const total = Math.max(0, Math.floor(ms/1000));
-    const h = Math.floor(total/3600);
-    const m = Math.floor((total%3600)/60);
-    const s = total%60;
-    if (h>0) return `${h}h ${m}m ${s}s`;
-    if (m>0) return `${m}m ${s}s`;
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    if (m > 0) return `${m}m ${s}s`;
     return `${s}s`;
   }
 
   function escapeHtml(s) {
-    return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+    return String(s).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   }
 
-  function intervalMsForType(type){
-  // 3h - 1s, 2h - 1s
-  return (type === "mini")
-    ? (2 * 60 * 60 * 1000 - 1000)   // 7199s
-    : (3 * 60 * 60 * 1000 - 1000);  // 10799s
+  // New truth: 3h - 1s, 2h - 1s
+  function intervalMsForType(type) {
+    return (type === "mini")
+      ? (2 * 60 * 60 * 1000 - 1000)
+      : (3 * 60 * 60 * 1000 - 1000);
   }
 
+  function nextSpawnWithInterval(anchorISO, intervalMs, fromDate) {
+    const anchor = new Date(anchorISO);
+    const from = fromDate || new Date();
+    const diff = from.getTime() - anchor.getTime();
+    const k = Math.ceil(diff / intervalMs);
+    const next = new Date(anchor.getTime() + Math.max(k, 0) * intervalMs);
+    return (next.getTime() < from.getTime()) ? new Date(next.getTime() + intervalMs) : next;
+  }
+
+  // Default bosses (shown when list is empty)
   const DEFAULT_BOSSES = [
     // MVP
     ["Orc Hero","mvp"],["Maya","mvp"],["Pharaoh","mvp"],["Orc Lord","mvp"],["Doppelganger","mvp"],
@@ -357,18 +308,67 @@ function migrateIntervalsPreserveNext(){
     ["Toad","mini"],["Deviling","mini"],["Angeling","mini"],["Dark Priest","mini"],["Vagabond Wolf","mini"],
   ];
 
-  function seedDefaultsIfNeeded() {
-    const seeded = localStorage.getItem(SEEDED_KEY) === "1";
-    if (seeded) return;
+  // --- State init (ORDER MATTERS) ---
+  migrateStorage();
+  let state = loadState();
 
+  // Preserve each boss's current "next spawn" while changing interval to the new correct value
+  function migrateIntervalsPreserveNext() {
+    if (!state?.bosses?.length) return;
+
+    const now = new Date();
+    let changed = false;
+
+    for (const b of state.bosses) {
+      if (!b.rule) continue;
+
+      const oldIntervalMs =
+        (typeof b.rule.intervalMs === "number" && b.rule.intervalMs > 0)
+          ? b.rule.intervalMs
+          : (typeof b.rule.intervalMinutes === "number" && b.rule.intervalMinutes > 0)
+            ? b.rule.intervalMinutes * 60 * 1000
+            : null;
+
+      const newIntervalMs = intervalMsForType(b.type);
+
+      // If missing old interval, just set new interval
+      if (!oldIntervalMs) {
+        b.rule.intervalMs = newIntervalMs;
+        delete b.rule.intervalMinutes;
+        changed = true;
+        continue;
+      }
+
+      // Already close enough to new interval
+      if (Math.abs(oldIntervalMs - newIntervalMs) < 500) {
+        b.rule.intervalMs = oldIntervalMs; // normalize
+        delete b.rule.intervalMinutes;
+        continue;
+      }
+
+      // Preserve the next spawn time based on the OLD interval
+      const next = nextSpawnWithInterval(b.rule.anchorISO, oldIntervalMs, now);
+
+      // Switch to NEW interval but keep the same next spawn (no visible reset)
+      b.rule.anchorISO = next.toISOString();
+      b.rule.intervalMs = newIntervalMs;
+      delete b.rule.intervalMinutes;
+      changed = true;
+    }
+
+    if (changed) saveState();
+  }
+
+  // Seed defaults if empty (even if seeded flag exists)
+  function seedDefaultsIfNeeded() {
     if (!state.bosses || state.bosses.length === 0) {
       const nowISO = new Date().toISOString();
-      state.bosses = DEFAULT_BOSSES.map(([name,type]) => ({
+      state.bosses = DEFAULT_BOSSES.map(([name, type]) => ({
         id: uuid(),
         name,
         type,
         notifyLead: 10,
-        rule: { type:"interval", intervalMinutes: intervalMinutesForType(type), anchorISO: nowISO }
+        rule: { type: "interval", intervalMs: intervalMsForType(type), anchorISO: nowISO }
       }));
       saveState();
     }
@@ -378,33 +378,34 @@ function migrateIntervalsPreserveNext(){
   function restoreDefaults() {
     if (!confirm("Restore default boss list? This will replace your current list.")) return;
     const nowISO = new Date().toISOString();
-    state.bosses = DEFAULT_BOSSES.map(([name,type]) => ({
+    state.bosses = DEFAULT_BOSSES.map(([name, type]) => ({
       id: uuid(),
       name,
       type,
       notifyLead: 10,
-      rule: { type:"interval", intervalMinutes: intervalMinutesForType(type), anchorISO: nowISO }
+      rule: { type: "interval", intervalMs: intervalMsForType(type), anchorISO: nowISO }
     }));
     saveState();
     renderAll();
   }
 
-  // Next spawn calculation (anchorISO is the next spawn time).
-  function nextSpawn(boss, from = new Date()){
+  // Next spawn (uses intervalMs; supports legacy intervalMinutes)
+  function nextSpawn(boss, from = new Date()) {
     const intervalMs = boss.rule.intervalMs || (boss.rule.intervalMinutes * 60 * 1000);
     return nextSpawnWithInterval(boss.rule.anchorISO, intervalMs, from);
   }
 
-  // Upsert by name+type
+  // Upsert by name+type (bulk import)
   function upsertBossByNameType(name, type, countdownMs, notifyLead) {
     const normName = name.trim().toLowerCase();
-    const intervalMin = intervalMinutesForType(type);
+    const intervalMs = intervalMsForType(type);
     const anchorISO = new Date(Date.now() + countdownMs).toISOString();
 
     const existing = state.bosses.find(b => b.name.toLowerCase() === normName && b.type === type);
     if (existing) {
       existing.notifyLead = notifyLead;
-      existing.rule.intervalMinutes = intervalMin;
+      existing.rule.intervalMs = intervalMs;
+      delete existing.rule.intervalMinutes;
       existing.rule.anchorISO = anchorISO;
     } else {
       state.bosses.push({
@@ -412,7 +413,7 @@ function migrateIntervalsPreserveNext(){
         name: name.trim(),
         type,
         notifyLead,
-        rule: { type:"interval", intervalMinutes: intervalMin, anchorISO }
+        rule: { type: "interval", intervalMs, anchorISO }
       });
     }
     saveState();
@@ -483,13 +484,13 @@ function migrateIntervalsPreserveNext(){
     renderNext(); renderSchedule(); updateCountdownInputs(false);
   }
 
-  function killed(id){
-  const b = state.bosses.find(x => x.id === id);
-  if (!b) return;
-  const intervalMs = b.rule.intervalMs;
-  b.rule.anchorISO = new Date(Date.now() + intervalMs).toISOString();
-  saveState();
-  renderNext(); renderSchedule(); updateCountdownInputs(false);
+  function killed(id) {
+    const b = state.bosses.find(x => x.id === id);
+    if (!b) return;
+    const intervalMs = b.rule.intervalMs || (b.rule.intervalMinutes * 60 * 1000);
+    b.rule.anchorISO = new Date(Date.now() + intervalMs).toISOString();
+    saveState();
+    renderNext(); renderSchedule(); updateCountdownInputs(false);
   }
 
   function removeBoss(id) {
@@ -499,15 +500,14 @@ function migrateIntervalsPreserveNext(){
     renderAll();
   }
 
-  // ACTIVE state + sorting for Next Spawns
+  // NEXT SPAWNS with ACTIVE window
   function renderNext() {
     const now = new Date();
 
     const items = state.bosses.map(b => {
-      const intervalMs = b.rule.intervalMinutes * 60 * 1000;
+      const intervalMs = b.rule.intervalMs || (b.rule.intervalMinutes * 60 * 1000);
       const next = nextSpawn(b, now);
 
-      // last spawn is one interval before the next spawn (since nextSpawn is the next upcoming)
       const last = new Date(next.getTime() - intervalMs);
       const activeUntil = new Date(last.getTime() + ACTIVE_WINDOW_MS);
       const isActive = now >= last && now < activeUntil;
@@ -521,7 +521,6 @@ function migrateIntervalsPreserveNext(){
       };
     });
 
-    // Sort: ACTIVE first (soonest to expire first), then by msToNext
     items.sort((a, b) => {
       if (a.isActive && !b.isActive) return -1;
       if (!a.isActive && b.isActive) return 1;
@@ -569,7 +568,7 @@ function migrateIntervalsPreserveNext(){
         t = nextSpawn(b, new Date(t.getTime() + 1000));
       }
     }
-    all.sort((a,b) => a.t - b.t);
+    all.sort((a, b) => a.t - b.t);
 
     if (all.length === 0) {
       els.schedule.innerHTML = `<p class="muted">No upcoming spawns in this window.</p>`;
@@ -594,7 +593,9 @@ function migrateIntervalsPreserveNext(){
     }
 
     const rows = state.bosses.map(b => {
-      const hrs = (b.rule.intervalMinutes / 60).toFixed(2).replace(/\.00$/,"");
+      const intervalMs = b.rule.intervalMs || (b.rule.intervalMinutes * 60 * 1000);
+      const hrs = (intervalMs / (60 * 60 * 1000)).toFixed(2).replace(/\.00$/, "");
+
       return `
         <tr>
           <td>
@@ -646,7 +647,7 @@ function migrateIntervalsPreserveNext(){
     });
   }
 
-  function updateCountdownInputs(force=false) {
+  function updateCountdownInputs(force = false) {
     const now = new Date();
     state.bosses.forEach(b => {
       const input = els.tableWrap.querySelector(`input.cd[data-id="${b.id}"]`);
@@ -680,6 +681,7 @@ function migrateIntervalsPreserveNext(){
     try { return JSON.parse(localStorage.getItem(NOTIF_LOG) || "{}"); }
     catch { return {}; }
   }
+
   function saveNotifLog(log) {
     localStorage.setItem(NOTIF_LOG, JSON.stringify(log));
   }
@@ -708,7 +710,7 @@ function migrateIntervalsPreserveNext(){
     }
 
     // cleanup 7 days
-    const cutoff = Date.now() - 7*24*3600*1000;
+    const cutoff = Date.now() - 7 * 24 * 3600 * 1000;
     let changed = false;
     for (const k in log) {
       if (log[k] < cutoff) { delete log[k]; changed = true; }
@@ -718,7 +720,7 @@ function migrateIntervalsPreserveNext(){
 
   // Export / Import
   els.btnExport.addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type:"application/json" });
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -771,13 +773,13 @@ function migrateIntervalsPreserveNext(){
       maybeNotify();
     }, parseInt(els.tick.value, 10));
   }
+
   els.tick.addEventListener("change", restartTick);
   els.horizon.addEventListener("change", () => renderSchedule());
 
-  // Seed defaults once per fresh browser
-  seedDefaultsIfNeeded();
-
-  // Initial render
+  // ---- Boot sequence ----
+  migrateIntervalsPreserveNext();  // preserve next spawn while switching to new intervals
+  seedDefaultsIfNeeded();          // if empty, restore default list
   renderAll();
   restartTick();
 })();
