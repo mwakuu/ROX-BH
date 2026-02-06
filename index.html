@@ -240,7 +240,10 @@
     try { return JSON.parse(localStorage.getItem(STORAGE)) || { bosses: [] }; }
     catch { return { bosses: [] }; }
   }
-
+  
+  let state = loadState();
+migrateIntervalsPreserveNext();
+  
   migrateStorage();
   let state = loadState();
 
@@ -248,6 +251,61 @@
     localStorage.setItem(STORAGE, JSON.stringify(state));
   }
 
+  function nextSpawnWithInterval(anchorISO, intervalMs, fromDate){
+  const anchor = new Date(anchorISO);
+  const from = fromDate || new Date();
+  const diff = from.getTime() - anchor.getTime();
+  const k = Math.ceil(diff / intervalMs);
+  const next = new Date(anchor.getTime() + Math.max(k, 0) * intervalMs);
+  return (next.getTime() < from.getTime()) ? new Date(next.getTime() + intervalMs) : next;
+}
+
+// Migrate existing saved bosses:
+// - preserve each boss's current "next spawn"
+// - switch interval to new correct interval (3h-1s / 2h-1s)
+function migrateIntervalsPreserveNext(){
+  if (!state?.bosses?.length) return;
+
+  const now = new Date();
+  let changed = false;
+
+  for (const b of state.bosses) {
+    if (!b.rule) continue;
+
+    // OLD interval could be stored as minutes (125/185) or already as ms
+    const oldIntervalMs =
+      (typeof b.rule.intervalMs === "number" && b.rule.intervalMs > 0)
+        ? b.rule.intervalMs
+        : (typeof b.rule.intervalMinutes === "number" && b.rule.intervalMinutes > 0)
+          ? b.rule.intervalMinutes * 60 * 1000
+          : null;
+
+    const newIntervalMs = intervalMsForType(b.type);
+
+    // If we can't read old interval, just set the new one (won't preserve perfectly)
+    if (!oldIntervalMs) {
+      b.rule.intervalMs = newIntervalMs;
+      delete b.rule.intervalMinutes;
+      changed = true;
+      continue;
+    }
+
+    // If already on new interval, skip
+    if (Math.abs(oldIntervalMs - newIntervalMs) < 500) continue;
+
+    // Preserve the next spawn time as of now using the old interval
+    const next = nextSpawnWithInterval(b.rule.anchorISO, oldIntervalMs, now);
+
+    // Switch to new interval, but keep anchor at that same next spawn
+    b.rule.anchorISO = next.toISOString();
+    b.rule.intervalMs = newIntervalMs;
+    delete b.rule.intervalMinutes;
+    changed = true;
+  }
+
+  if (changed) saveState();
+}   
+  
   function parseCountdownString(s) {
     const m = String(s).trim().match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
     if (!m) return null;
@@ -283,10 +341,11 @@
     return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
   }
 
-  function intervalMinutesForType(type) {
-    // Includes +5m kill/reset buffer
-    const base = (type === "mini") ? 120 : 180;
-    return base + 5;
+  function intervalMsForType(type){
+  // 3h - 1s, 2h - 1s
+  return (type === "mini")
+    ? (2 * 60 * 60 * 1000 - 1000)   // 7199s
+    : (3 * 60 * 60 * 1000 - 1000);  // 10799s
   }
 
   const DEFAULT_BOSSES = [
@@ -331,14 +390,9 @@
   }
 
   // Next spawn calculation (anchorISO is the next spawn time).
-  function nextSpawn(boss, from = new Date()) {
-    const anchor = new Date(boss.rule.anchorISO);
-    const intervalMs = boss.rule.intervalMinutes * 60 * 1000;
-    const diff = from.getTime() - anchor.getTime();
-    const k = Math.ceil(diff / intervalMs);
-    const next = new Date(anchor.getTime() + Math.max(k, 0) * intervalMs);
-    if (next.getTime() < from.getTime()) return new Date(next.getTime() + intervalMs);
-    return next;
+  function nextSpawn(boss, from = new Date()){
+    const intervalMs = boss.rule.intervalMs || (boss.rule.intervalMinutes * 60 * 1000);
+    return nextSpawnWithInterval(boss.rule.anchorISO, intervalMs, from);
   }
 
   // Upsert by name+type
@@ -429,13 +483,13 @@
     renderNext(); renderSchedule(); updateCountdownInputs(false);
   }
 
-  function killed(id) {
-    const b = state.bosses.find(x => x.id === id);
-    if (!b) return;
-    const intervalMs = b.rule.intervalMinutes * 60 * 1000;
-    b.rule.anchorISO = new Date(Date.now() + intervalMs).toISOString();
-    saveState();
-    renderNext(); renderSchedule(); updateCountdownInputs(false);
+  function killed(id){
+  const b = state.bosses.find(x => x.id === id);
+  if (!b) return;
+  const intervalMs = b.rule.intervalMs;
+  b.rule.anchorISO = new Date(Date.now() + intervalMs).toISOString();
+  saveState();
+  renderNext(); renderSchedule(); updateCountdownInputs(false);
   }
 
   function removeBoss(id) {
