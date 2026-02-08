@@ -79,6 +79,10 @@
       outline:2px solid var(--focus);
       outline-offset:2px;
     }
+.twoColWrap{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:920px){
+  .twoColWrap{grid-template-columns:1fr}
+}
 
     .list{display:flex;flex-direction:column;gap:8px}
     .item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.12)}
@@ -223,14 +227,39 @@
       : (3 * 60 * 60 * 1000 - 1000);
   }
 
-  const DEFAULT_BOSSES = [
-    // MVP
-    ["Orc Hero","mvp"],["Maya","mvp"],["Pharaoh","mvp"],["Orc Lord","mvp"],["Doppelganger","mvp"],
-    ["Amon Ra","mvp"],["Phreeoni","mvp"],["Mistress","mvp"],["Kraken","mvp"],["Eddga","mvp"],
-    // Mini
-    ["King Dramoh","mini"],["Dragon Fly","mini"],["Eclipse","mini"],["Mastering","mini"],["Ghostring","mini"],
-    ["Toad","mini"],["Deviling","mini"],["Angeling","mini"],["Dark Priest","mini"],["Vagabond Wolf","mini"],
-  ];
+const DEFAULT_BOSSES = [
+  // MVP (exact order)
+  ["Phreeoni","mvp"],
+  ["Mistress","mvp"],
+  ["Kraken","mvp"],
+  ["Eddga","mvp"],
+  ["Orc Hero","mvp"],
+  ["Maya","mvp"],
+  ["Pharaoh","mvp"],
+  ["Orc Lord","mvp"],
+  ["Doppelganger","mvp"],
+  ["Amon Ra","mvp"],
+
+  // Mini (exact order)
+  ["Dragon Fly","mini"],
+  ["Eclipse","mini"],
+  ["Mastering","mini"],
+  ["Ghostring","mini"],
+  ["King Dramoh","mini"],
+  ["Toad","mini"],
+  ["Deviling","mini"],   // (you typed Devlling; boss name is Deviling)
+  ["Angeling","mini"],
+  ["Dark Priest","mini"],
+  ["Vagabond Wolf","mini"],
+];
+
+const ORDER_INDEX = (() => {
+  const m = new Map();
+  DEFAULT_BOSSES.forEach(([name, type], i) => {
+    m.set((name.trim().toLowerCase() + "|" + type), i);
+  });
+  return m;
+})();
 
   function migrateStorage() {
     // If current key exists, do nothing
@@ -304,7 +333,44 @@
   function escapeHtml(s) {
     return String(s).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   }
+function getCurrentCountdownMsFromRow(id) {
+  const input = els.tableWrap.querySelector(`input.cd[data-id="${id}"]`);
+  if (!input) return null;
 
+  const parsed = parseCountdownString(input.value || "");
+  if (parsed != null) return parsed;
+
+  // fallback: compute from stored anchor if input is blank/invalid
+  const b = state.bosses.find(x => x.id === id);
+  if (!b) return null;
+  const next = nextSpawn(b, new Date());
+  return Math.max(0, next.getTime() - Date.now());
+}
+
+function setCountdownMsForRow(id, newMs) {
+  const b = state.bosses.find(x => x.id === id);
+  if (!b) return;
+
+  const clamped = Math.max(0, newMs);
+  b.rule.anchorISO = new Date(Date.now() + clamped).toISOString();
+
+  const input = els.tableWrap.querySelector(`input.cd[data-id="${id}"]`);
+  if (input) {
+    input.value = msToHHMMSS(clamped);
+    input.dataset.dirty = "0";
+  }
+
+  saveState();
+  renderNext();
+  renderSchedule();
+  updateCountdownInputs(false);
+}
+
+function adjustCountdown(id, deltaMs) {
+  const cur = getCurrentCountdownMsFromRow(id);
+  if (cur == null) return;
+  setCountdownMsForRow(id, cur + deltaMs);
+}
   // --- BOOT ORDER (CRITICAL) ---
   migrateStorage();
   let state = loadState();  // <— load once, after migrateStorage
@@ -575,66 +641,106 @@
     `).join("");
   }
 
-  function renderTable() {
-    if (!state.bosses || state.bosses.length === 0) {
-      els.tableWrap.innerHTML = `<p class="muted">No bosses. Click “Restore default boss list”.</p>`;
-      return;
-    }
-
-    const rows = state.bosses.map(b => {
-      const intervalMs = b.rule.intervalMs || (b.rule.intervalMinutes * 60 * 1000);
-      const hrs = (intervalMs / (60 * 60 * 1000)).toFixed(2).replace(/\.00$/, "");
-
-      return `
-        <tr>
-          <td>
-            <strong>${escapeHtml(b.name)}</strong>
-            <div class="muted small">${escapeHtml(b.type.toUpperCase())} • every ${hrs}h</div>
-          </td>
-          <td>${b.notifyLead} min</td>
-          <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <input class="cd" data-id="${b.id}" inputmode="numeric" placeholder="HH:MM:SS" style="width:120px" />
-            <button class="btnGhost minus10" data-id="${b.id}" type="button">-10s</button>
-            <button class="btnGhost killed" data-id="${b.id}" type="button">Killed</button>
-            <button class="btn apply" data-id="${b.id}" type="button">Apply</button>
-            <button class="btnDanger del" data-id="${b.id}" type="button">Remove</button>
-          </td>
-        </tr>
-      `;
-    }).join("");
-
-    els.tableWrap.innerHTML = `
-      <table>
-        <thead><tr><th>Boss</th><th>Notify</th><th>Countdown controls</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
-
-    updateCountdownInputs(true);
-
-    els.tableWrap.querySelectorAll("button.apply").forEach(btn =>
-      btn.addEventListener("click", () => applyCountdown(btn.dataset.id))
-    );
-    els.tableWrap.querySelectorAll("button.minus10").forEach(btn =>
-      btn.addEventListener("click", () => minusTen(btn.dataset.id))
-    );
-    els.tableWrap.querySelectorAll("button.killed").forEach(btn =>
-      btn.addEventListener("click", () => killed(btn.dataset.id))
-    );
-    els.tableWrap.querySelectorAll("button.del").forEach(btn =>
-      btn.addEventListener("click", () => removeBoss(btn.dataset.id))
-    );
-
-    els.tableWrap.querySelectorAll("input.cd").forEach(inp => {
-      inp.addEventListener("input", () => inp.dataset.dirty = "1");
-      inp.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter") {
-          ev.preventDefault();
-          applyCountdown(inp.dataset.id);
-        }
-      });
-    });
+function renderTable() {
+  if (!state.bosses || state.bosses.length === 0) {
+    els.tableWrap.innerHTML = `<p class="muted">No bosses. Click “Restore default boss list”.</p>`;
+    return;
   }
+
+  const mvp = state.bosses
+    .filter(b => b.type === "mvp")
+    .sort((a,b) => (ORDER_INDEX.get(a.name.toLowerCase()+"|mvp") ?? 9999) - (ORDER_INDEX.get(b.name.toLowerCase()+"|mvp") ?? 9999));
+
+  const mini = state.bosses
+    .filter(b => b.type === "mini")
+    .sort((a,b) => (ORDER_INDEX.get(a.name.toLowerCase()+"|mini") ?? 9999) - (ORDER_INDEX.get(b.name.toLowerCase()+"|mini") ?? 9999));
+
+  const side = (title, list, type) => {
+    const rows = list.map(b => `
+      <tr>
+        <td style="padding:10px 8px">
+          <!-- Row A: name + input + apply  ... spacer ... killed + remove -->
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div style="min-width:160px">
+              <strong>${escapeHtml(b.name)}</strong>
+              <div class="muted small">${escapeHtml(type.toUpperCase())}</div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <input class="cd" data-id="${b.id}" inputmode="numeric" placeholder="HH:MM:SS"
+                     style="width:120px;margin-top:0" />
+              <button class="btn apply" data-id="${b.id}" type="button">Apply</button>
+            </div>
+
+            <div style="flex:1 1 auto"></div>
+
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <button class="btnGhost killed" data-id="${b.id}" type="button">Killed</button>
+              <button class="btnDanger del" data-id="${b.id}" type="button">Remove</button>
+            </div>
+          </div>
+
+          <!-- Row B: reduce buttons -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">
+            <button class="btnGhost adj" data-id="${b.id}" data-delta="${-60*60*1000}" type="button">-1h</button>
+            <button class="btnGhost adj" data-id="${b.id}" data-delta="${-10*60*1000}" type="button">-10m</button>
+            <button class="btnGhost adj" data-id="${b.id}" data-delta="${-5*60*1000}" type="button">-5m</button>
+            <button class="btnGhost adj" data-id="${b.id}" data-delta="${-1*60*1000}" type="button">-1m</button>
+            <button class="btnGhost adj" data-id="${b.id}" data-delta="${-10*1000}" type="button">-10s</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+
+    return `
+      <div class="card" style="padding:12px">
+        <h2 style="margin:0 0 10px 0">${escapeHtml(title)}</h2>
+        <table>
+          <thead><tr><th>Boss</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  };
+
+  els.tableWrap.innerHTML = `
+    <div class="twoColWrap">
+      ${side("MVP", mvp, "mvp")}
+      ${side("Mini", mini, "mini")}
+    </div>
+  `;
+
+  updateCountdownInputs(true);
+
+  // Apply
+  els.tableWrap.querySelectorAll("button.apply").forEach(btn =>
+    btn.addEventListener("click", () => applyCountdown(btn.dataset.id))
+  );
+
+  // Adjust (wrap-around)
+  els.tableWrap.querySelectorAll("button.adj").forEach(btn =>
+    btn.addEventListener("click", () => adjustCountdown(btn.dataset.id, parseInt(btn.dataset.delta, 10)))
+  );
+
+  // Killed / Remove
+  els.tableWrap.querySelectorAll("button.killed").forEach(btn =>
+    btn.addEventListener("click", () => killed(btn.dataset.id))
+  );
+  els.tableWrap.querySelectorAll("button.del").forEach(btn =>
+    btn.addEventListener("click", () => removeBoss(btn.dataset.id))
+  );
+
+  // Enter applies; typing marks dirty so ticking won't overwrite while editing
+  els.tableWrap.querySelectorAll("input.cd").forEach(inp => {
+    inp.addEventListener("input", () => inp.dataset.dirty = "1");
+    inp.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        applyCountdown(inp.dataset.id);
+      }
+    });
+  });
+}
 
   function updateCountdownInputs(force=false) {
     const now = new Date();
@@ -665,6 +771,23 @@
     const p = await Notification.requestPermission();
     alert(p === "granted" ? "Notifications enabled." : "Not enabled.");
   }
+function wrapCountdownMs(type, ms) {
+  const intervalMs = intervalMsForType(type);
+
+  // If we go to 0 or below, wrap back into the range (0, interval]
+  // Example: -10s becomes interval-10s, 0 becomes interval
+  if (ms <= 0) {
+    // bring it into (0..interval] by adding interval enough times
+    // (handles big jumps like -3h)
+    while (ms <= 0) ms += intervalMs;
+    return ms;
+  }
+
+  // Optional: if you ever add + buttons later, keep it bounded too
+  // while (ms > intervalMs) ms -= intervalMs;
+
+  return ms;
+}
 
   function loadNotifLog() {
     try { return JSON.parse(localStorage.getItem(NOTIF_LOG) || "{}"); }
