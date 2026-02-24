@@ -221,11 +221,15 @@
   }
 
   // 3h - 1s, 2h - 1s
-  function intervalMsForType(type) {
-    return (type === "mini")
-      ? (2 * 60 * 60 * 1000 - 1000)
-      : (3 * 60 * 60 * 1000 - 1000);
-  }
+const SPAWN_OFFSET_MS = 5 * 60 * 1000; // +5 minutes
+
+function intervalMsForType(type){
+  const base = (type === "mini")
+    ? (2 * 60 * 60 * 1000 - 1000)   // 2h - 1s
+    : (3 * 60 * 60 * 1000 - 1000);  // 3h - 1s
+
+  return base + SPAWN_OFFSET_MS;
+}
 
 const DEFAULT_BOSSES = [
   // MVP (exact order)
